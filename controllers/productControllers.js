@@ -1,36 +1,60 @@
 const model = require("../models/productModels");
 const cloudinary = require("../middlewares/cloudinary");
 
-const readProduct = async (req, res) => {
+// const getPageProduct = async (req, res) => {
+//   try {
+//     const { limit, page } = req.query;
+//     const pageInt = +page;
+//     const limitInt = +limit;
+
+//     if (!pageInt && !limitInt) {
+//       res.status(400).send("Bad request");
+//     }
+//     const products = await model.getAllProduct();
+//     const totalPages = Math.ceil(products.rowCount / limitInt);
+//     const isValidInput = pageInt <= totalPages && pageInt > 0;
+
+//     if (!isValidInput) {
+//       res.status(404).send("Data Not Found");
+//     }
+
+//     const offset = (pageInt - 1) * limitInt;
+//     const getData = await model.productByPage(limitInt, offset);
+//     const totalData = products.rowCount;
+//     res.send({
+//       data: getData.rows,
+//       jumlahData: getData.rowCount,
+//       currentPage: pageInt,
+//       totalPages,
+//       totalData,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).send({ message: error.message });
+//   }
+// };
+
+// const getNameProduct = async (req, res) => {
+//   try {
+//     const { name } = req.query;
+//     const getData = await model.searchNameProduct(name);
+//     res.send({
+//       data: getData.rows,
+//       jumlahData: getData.rowCount,
+//     });
+//   } catch (error) {
+//     console.log(error.message);
+//     res.status(400).send({ message: error.message });
+//   }
+// };
+
+const getAllProduct = async (req, res) => {
   try {
-    const { limit, page } = req.query;
-    const pageInt = +page;
-    const limitInt = +limit;
-
-    if (!pageInt && !limitInt) {
-      res.status(400).send("Bad request");
-    }
-    const products = await model.getAllProduct();
-    const totalPages = Math.ceil(products.rowCount / limitInt);
-    const isValidInput = pageInt <= totalPages && pageInt > 0;
-
-    if (!isValidInput) {
-      res.status(404).send("Data Not Found");
-    }
-
-    const offset = (pageInt - 1) * limitInt;
-    const getData = await model.productByPage(limitInt, offset);
-    const totalData = products.rowCount;
-    res.send({
-      data: getData.rows,
-      jumlahData: getData.rowCount,
-      page: pageInt,
-      totalPages,
-      totalData,
-    });
+    const getData = await model.getAllProduct();
+    res.send({ data: getData.rows, jumlahData: getData.rowCount });
   } catch (error) {
     console.log(error);
-    res.status(400).send({ message: error.message });
+    res.status(400).send("something went wrong");
   }
 };
 
@@ -55,30 +79,37 @@ const getDetailProduct = async (req, res) => {
 const createProduct = async (req, res) => {
   try {
     const { name, buy_price, sell_price, stock } = req.body;
-    const recipeCloud = await cloudinary.uploader.upload(req?.file?.path);
-    const image = recipeCloud?.url;
-    const addProduct = await model.createProduct({
+    const productCloud = await cloudinary.uploader.upload(req?.file?.path);
+    const image = productCloud?.url;
+    const checkProductName = await model.getProductByName(name);
+    if (checkProductName.rowCount > 0) {
+      return res.status(401).send("Duplicate Product Name");
+    }
+    if (buy_price) {
+      if (isNaN(buy_price)) {
+        return res.status(401).send("buy_price must be a Number");
+      }
+    }
+
+    if (sell_price) {
+      if (isNaN(sell_price)) {
+        return res.status(401).send("sell_price must be a Number");
+      }
+    }
+
+    if (stock) {
+      if (isNaN(stock)) {
+        return res.status(401).send("stock must be a Number");
+      }
+    }
+    await model.createProduct({
       name,
       buy_price,
       sell_price,
       stock,
       image,
     });
-
-    if (addProduct) {
-      res.send({
-        message: "data added successfully",
-        data: {
-          name: name.trim(),
-          buy_price,
-          sell_price,
-          stock,
-          image,
-        },
-      });
-    } else {
-      res.status(400).send("data failed to add");
-    }
+    res.status(200).send({ message: "New Product Added Successfully!" });
   } catch (error) {
     console.log(error);
     res.status(400).send({ message: error.message });
@@ -88,34 +119,56 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, buy_price, sell_price, stock } = req.body;
-
+    const { name, buyPrice, sellPrice, stock } = req.body;
     const getData = await model.getProductById(id);
+    if (!getData?.rowCount) {
+      return res.status(404).send("Data Not Found");
+    }
+
+    const checkProductName = await model.getProductByName(name);
+    if (checkProductName.rowCount > 0) {
+      return res.status(401).send("Duplicate Product Name");
+    }
+
+    if (buyPrice) {
+      if (isNaN(buyPrice)) {
+        return res.status(401).send("buy_price must be a Number");
+      }
+    }
+
+    if (sellPrice) {
+      if (isNaN(sellPrice)) {
+        return res.status(401).send("sell_price must be a Number");
+      }
+    }
+
+    if (stock) {
+      if (isNaN(stock)) {
+        return res.status(401).send("stock must be a Number");
+      }
+    }
 
     if (getData.rowCount > 0) {
       let inputName = name || getData.rows[0].name;
-      let inputBuyPrice = buy_price || getData.rows[0].buy_price;
-      let inputSellPrice = sell_price || getData.rows[0].sell_price;
+      let inputBuyPrice = buyPrice || getData.rows[0].buy_price;
+      let inputSellPrice = sellPrice || getData.rows[0].sell_price;
       let inputStock = stock || getData.rows[0].stock;
 
       let message = "";
 
       if (name) message += "name,";
-      if (buy_price) message += "buy_price,";
-      if (sell_price) message += "sell_price,";
+      if (buyPrice) message += "buy_price,";
+      if (sellPrice) message += "sell_price,";
       if (stock) message += "stock,";
 
-      const editData = await model.updateProduct({
+      await model.updateProduct({
+        id,
         name: inputName,
         buy_price: inputBuyPrice,
         sell_price: inputSellPrice,
         stock: inputStock,
       });
-      if (editData) {
-        res.send(`${message} successfully changed`);
-      } else {
-        res.status(400).send("data failed to change");
-      }
+      res.send(`${message} successfully changed`);
     }
   } catch (error) {
     console.log(error);
@@ -136,14 +189,11 @@ const UpdateImageProduct = async (req, res) => {
 
       if (image) message += "image,";
 
-      const editData = await model.updateImageProduct({
+      await model.updateImageProduct({
+        id: id,
         image: inputImage,
       });
-      if (editData) {
-        res.send(`${message} successfully changed`);
-      } else {
-        res.status(400).send("data failed to change");
-      }
+      res.send(`${message} successfully changed`);
     }
   } catch (error) {
     console.log(error);
@@ -172,35 +222,11 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-const searchNameProduct = async (req, res) => {
-  try {
-    const { name } = req.query;
-    const { page, limit } = req.query;
-    if (name === "") {
-      const getAll = await model.getAllProduct(page, limit);
-      res.send({
-        data: getAll.rows,
-        jumlahData: getAll.rowCount,
-      });
-    } else {
-      const getData = await model.searchNameProduct(name);
-      res.send({
-        data: getData.rows,
-        jumlahData: getData.rowCount,
-      });
-    }
-  } catch (error) {
-    console.log(error.message);
-    res.status(400).send({ message: error.message });
-  }
-};
-
 module.exports = {
-  readProduct,
+  getAllProduct,
   getDetailProduct,
   createProduct,
   updateProduct,
   UpdateImageProduct,
   deleteProduct,
-  searchNameProduct,
 };

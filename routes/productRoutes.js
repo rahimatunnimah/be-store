@@ -3,9 +3,8 @@ const controller = require("../controllers/productControllers");
 const middlewares = require("../middlewares/jwt");
 const uploadImage = require("../middlewares/uploadProductImage");
 
-Router.get("/", controller.readProduct)
+Router.get("/", controller.getAllProduct)
   .get("/detail/:id", controller.getDetailProduct)
-  .get("/search/name", controller.searchNameProduct)
   .post("/add", middlewares.checkToken, uploadImage, controller.createProduct)
   .patch("/edit/:id", middlewares.checkToken, controller.updateProduct)
   .patch(

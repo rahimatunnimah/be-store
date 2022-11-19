@@ -32,11 +32,12 @@ const getUserByEmail = (email) => {
   });
 };
 
-const registerUser = (props) => {
+const registerUser = (user) => {
+  const { username, email, password } = user;
   return new Promise((resolve, reject) => {
     db.query(
       `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *`,
-      [props.username, props.email, props.password],
+      [username, email, password],
       (error, result) => {
         if (error) {
           reject(error);
