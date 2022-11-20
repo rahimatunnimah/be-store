@@ -22,17 +22,15 @@ const upload = multer({
     fileSize: 100000, // 100 KB
   },
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpg|png/;
-    const extname = filetypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    const mimetype = filetypes.test(file.mimetype);
+    // const filetypes = /jpg|png/;
+    const extname = path.extname(file.originalname).toLowerCase();
+    // const mimetype = filetypes.test(file.mimetype);
 
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb("Only accept png and jpg!", false);
+    if (extname !== ".jpg" && extname !== ".png") {
+      cb(new Error("Only accept png and jpg!"), false);
+      return;
     }
+    cb(null, true);
   },
 });
 
